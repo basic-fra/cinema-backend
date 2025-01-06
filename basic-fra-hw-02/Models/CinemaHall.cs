@@ -3,12 +3,14 @@ using System.Text.Json.Serialization;
 
 namespace basic_fra_hw_02.Models
 {
-    public class Cinema
+    public class CinemaHall
     {
-        [Key]  // Data annotation specifying that Cinema_id is the primary key
+        [Key]
         [JsonIgnore] // Hides this field from Swagger and JSON serialization
-        public Guid CinemaId { get; set; }
+        public Guid HallId { get; set; }  // This will be the primary key
+        public Guid CinemaId { get; set; } // Foreign key to the Cinema table
         public string Name { get; set; }
-        public string Location { get; set; }
+        public int Capacity { get; set; }
+
     }
 }
