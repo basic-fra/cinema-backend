@@ -9,7 +9,12 @@ namespace basic_fra_hw_02.Models
         public Guid TicketId { get; set; }
         public Guid PersonId { get; set; }
         public Guid MovieId { get; set; }
+
+        [JsonIgnore]
         public Guid HallId { get; set; }
+
+        [JsonIgnore]
+        public Guid CinemaId { get; set; }
 
         [JsonConverter(typeof(DateTimeConverter))]
         public DateTime ShowTime { get; set; }

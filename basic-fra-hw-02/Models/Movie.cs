@@ -6,6 +6,8 @@ namespace basic_fra_hw_02.Models
     {
         [JsonIgnore]
         public Guid MovieId { get; set; }
+
+        [JsonIgnore]
         public Guid CinemaId { get; set; }
         public Guid HallId { get; set; }
         public string Title { get; set; }

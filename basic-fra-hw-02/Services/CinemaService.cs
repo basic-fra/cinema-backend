@@ -1,34 +1,25 @@
-﻿using basic_fra_hw_02.Models;
+﻿using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using System.Text.RegularExpressions;
 
 namespace basic_fra_hw_02.Services
 {
     public class CinemaService
     {
         private readonly string _connectionString;
-
+        private readonly CinemaLogic _cinemaLogic;
         public CinemaService(string connectionString)
         {
             _connectionString = connectionString;
+            _cinemaLogic = new CinemaLogic();
         }
 
         // Add a new cinema
         public async Task AddCinemaAsync(Cinema cinema)
-
         {
-            // Validate the Name field using regex
-            var namePattern = @"^[a-zA-Z\s]+$"; // This regex allows only letters and spaces
-
-            if (string.IsNullOrEmpty(cinema.Name) || string.IsNullOrEmpty(cinema.Location))
-            {
-                throw new ArgumentException("Cinema name and location cannot be empty.");
-            }
-
-            if (!Regex.IsMatch(cinema.Name, namePattern))
-            {
-                throw new ArgumentException("Cinema name can only contain letters and spaces.");
-            }
+            // Delegate validation to CinemaLogic
+            _cinemaLogic.ValidateCinema(cinema);
 
             cinema.CinemaId = Guid.NewGuid();
 
@@ -46,7 +37,7 @@ namespace basic_fra_hw_02.Services
                     command.Parameters.AddWithValue("@Name", cinema.Name);
                     command.Parameters.AddWithValue("@Location", cinema.Location);
 
-                    await command.ExecuteNonQueryAsync();
+                    await command.ExecuteNonQueryAsync(); //Used for commands that do not return results
                 }
             }
         }
@@ -93,7 +84,7 @@ namespace basic_fra_hw_02.Services
 
                 using (var command = new SqliteCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@CinemaId", cinemaId);
+                    command.Parameters.AddWithValue("@CinemaId", cinemaId);// Convert Guid to string .ToString()
 
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -101,6 +92,7 @@ namespace basic_fra_hw_02.Services
                         {
                             return new Cinema
                             {
+                                //CinemaId = Guid.Parse(reader.GetString(0)),  Parse string to Guid
                                 CinemaId = reader.GetGuid(0),
                                 Name = reader.GetString(1),
                                 Location = reader.GetString(2)
@@ -112,46 +104,7 @@ namespace basic_fra_hw_02.Services
             return null; // Return null if cinema not found
         }
 
-        //Update cinema
-        public async Task UpdateCinemaAsync(Cinema cinema)
-        {
-            var namePattern = @"^[a-zA-Z\s]+$"; // This regex allows only letters and spaces
-
-            if (string.IsNullOrEmpty(cinema.Name) || string.IsNullOrEmpty(cinema.Location))
-            {
-                throw new ArgumentException("Cinema name and location cannot be empty.");
-            }
-
-            if (!Regex.IsMatch(cinema.Name, namePattern))
-            {
-                throw new ArgumentException("Cinema name can only contain letters and spaces.");
-            }
-
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-
-                var query = @"
-                UPDATE CINEMA
-                SET name = @Name, location = @Location
-                WHERE cinema_id = @CinemaId";
-
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@CinemaId", cinema.CinemaId);
-                    command.Parameters.AddWithValue("@Name", cinema.Name);
-                    command.Parameters.AddWithValue("@Location", cinema.Location);
-
-                    int rowsAffected = await command.ExecuteNonQueryAsync();
-                    if (rowsAffected == 0)
-                    {
-                        throw new Exception("Cinema not found");
-                    }
-                }
-            }
-        }
-
-        //Delete cinema by ID
+        // Delete cinema by ID
         public async Task DeleteCinemaAsync(Guid cinemaId)
         {
             using (var connection = new SqliteConnection(_connectionString))

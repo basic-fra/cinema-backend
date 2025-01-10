@@ -4,36 +4,23 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using basic_fra_hw_02.Models;
 using System.Text.RegularExpressions;
+using basic_fra_hw_02.Logics;
 
 public class CinemaHallService
 {
     private readonly string _connectionString;
+    private readonly CinemaHallLogic _cinemaHallLogic;
 
     public CinemaHallService(string connectionString)
     {
         _connectionString = connectionString;
+        _cinemaHallLogic = new CinemaHallLogic();
     }
 
     // Add CinemaHall
     public async Task AddCinemaHallAsync(CinemaHall cinemaHall)
     {
-        var namePattern = @"^[a-zA-Z0-9\s]+$";
-        var capPattern = @"^\d+$"; //regex only numbers
-
-        if (string.IsNullOrEmpty(cinemaHall.Name))
-        {
-            throw new ArgumentException("Name cannot be empty.");
-        }
-
-        if (!Regex.IsMatch(cinemaHall.Name, namePattern))
-        {
-            throw new ArgumentException("Name can only contain letters, spaces and numbers.");
-        }
-
-        if (!Regex.IsMatch(cinemaHall.Capacity.ToString(), capPattern))
-        {
-            throw new ArgumentException("Capacity can only contain numbers.");
-        }
+        _cinemaHallLogic.ValidateHall(cinemaHall);
 
         // Check if the CinemaId exists in the Cinema table
         var cinemaExists = await CheckIfCinemaExistsAsync(cinemaHall.CinemaId);
@@ -125,58 +112,6 @@ public class CinemaHallService
         }
 
         return null;
-    }
-
-    // Update CinemaHall
-    public async Task UpdateCinemaHallAsync(CinemaHall cinemaHall)
-    {
-        var namePattern = @"^[a-zA-Z0-9\s]+$";
-        var capPattern = @"^\d+$"; //regex only numbers
-
-        if (string.IsNullOrEmpty(cinemaHall.Name))
-        {
-            throw new ArgumentException("Name cannot be empty.");
-        }
-
-        if (!Regex.IsMatch(cinemaHall.Name, namePattern))
-        {
-            throw new ArgumentException("Name can only contain letters, spaces and numbers.");
-        }
-
-        if (!Regex.IsMatch(cinemaHall.Capacity.ToString(), capPattern))
-        {
-            throw new ArgumentException("Capacity can only contain numbers.");
-        }
-        // Check if the CinemaId exists in the Cinema table
-        var cinemaExists = await CheckIfCinemaExistsAsync(cinemaHall.CinemaId);
-        if (!cinemaExists)
-        {
-            throw new Exception("Cinema does not exist");
-        }
-
-        using (var connection = new SqliteConnection(_connectionString))
-        {
-            await connection.OpenAsync();
-
-            var query = @"
-            UPDATE CINEMA_HALL
-            SET name = @Name, cinema_id = @CinemaId, capacity = @Capacity 
-            WHERE hall_id = @HallId";
-
-            using (var command = new SqliteCommand(query, connection))
-            {
-                command.Parameters.AddWithValue("@HallId", cinemaHall.HallId);
-                command.Parameters.AddWithValue("@CinemaId", cinemaHall.CinemaId);
-                command.Parameters.AddWithValue("@Name", cinemaHall.Name);
-                command.Parameters.AddWithValue("@Capacity", cinemaHall.Capacity);
-
-                var rowsAffected = await command.ExecuteNonQueryAsync();
-                if (rowsAffected == 0)
-                {
-                    throw new Exception("CinemaHall not found");
-                }
-            }
-        }
     }
 
     // Delete CinemaHall

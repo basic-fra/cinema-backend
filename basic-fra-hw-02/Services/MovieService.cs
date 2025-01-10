@@ -13,29 +13,43 @@ namespace basic_fra_hw_02.Services
      {
          _connectionString = connectionString;
      }
-     
+
      public async Task AddMovieAsync(Movie movie)
      {
-         using (var connection = new SqliteConnection(_connectionString))
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            await connection.OpenAsync();
+            // Step 1: Fetch cinema_id based on hall_id
+            var fetchCinemaIdQuery = "SELECT cinema_id FROM CINEMA_HALL WHERE hall_id = @HallId";
+
+            string cinemaId;
+            using (var fetchCommand = new SqliteCommand(fetchCinemaIdQuery, connection))
             {
-                await connection.OpenAsync();
-
-                var query = @"
-                    INSERT INTO MOVIE (movie_id, cinema_id, hall_id, title, description, duration)
-                    VALUES (@MovieId, @CinemaId, @HallId, @Title, @Description, @Duration)";
-
-                using (var command = new SqliteCommand(query, connection))
+                fetchCommand.Parameters.AddWithValue("@HallId", movie.HallId);
+                cinemaId = (string)await fetchCommand.ExecuteScalarAsync();
+                if (cinemaId == null)
                 {
-                    command.Parameters.AddWithValue("@MovieId", movie.MovieId);
-                    command.Parameters.AddWithValue("@CinemaId", movie.CinemaId);  // New field
-                    command.Parameters.AddWithValue("@HallId", movie.HallId);      // New field
-                    command.Parameters.AddWithValue("@Title", movie.Title);
-                    command.Parameters.AddWithValue("@Description", movie.Description);
-                    command.Parameters.AddWithValue("@Duration", movie.Duration);
-
-                    await command.ExecuteNonQueryAsync();
+                    throw new ArgumentException("Invalid hall_id. Cinema not found for the given hall_id.");
                 }
             }
+
+            // Step 2: Insert movie using fetched cinema_id
+            var insertMovieQuery = @"
+                INSERT INTO MOVIE (movie_id, cinema_id, hall_id, title, description, duration)
+                VALUES (@MovieId, @CinemaId, @HallId, @Title, @Description, @Duration)";
+
+            using (var insertCommand = new SqliteCommand(insertMovieQuery, connection))
+            {
+                insertCommand.Parameters.AddWithValue("@MovieId", movie.MovieId);
+                insertCommand.Parameters.AddWithValue("@CinemaId", cinemaId);
+                insertCommand.Parameters.AddWithValue("@HallId", movie.HallId);
+                insertCommand.Parameters.AddWithValue("@Title", movie.Title);
+                insertCommand.Parameters.AddWithValue("@Description", movie.Description);
+                insertCommand.Parameters.AddWithValue("@Duration", movie.Duration);
+
+                await insertCommand.ExecuteNonQueryAsync();
+            }
+        }
      }
 
      public async Task<List<Movie>> GetAllMoviesAsync()
@@ -104,36 +118,6 @@ namespace basic_fra_hw_02.Services
          return null; // Return null if the movie is not found
      }
 
-     public async Task UpdateMovieAsync(Movie movie)
-     {
-         using (var connection = new SqliteConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-
-                var query = @"
-                    UPDATE MOVIE
-                    SET title = @Title, description = @Description, duration = @Duration, cinema_id = @CinemaId, hall_id = @HallId
-                    WHERE movie_id = @MovieId";
-
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@MovieId", movie.MovieId);
-                    command.Parameters.AddWithValue("@CinemaId", movie.CinemaId); // New field
-                    command.Parameters.AddWithValue("@HallId", movie.HallId);     // New field
-                    command.Parameters.AddWithValue("@Title", movie.Title);
-                    command.Parameters.AddWithValue("@Description", movie.Description);
-                    command.Parameters.AddWithValue("@Duration", movie.Duration);
-
-                    var rowsAffected = await command.ExecuteNonQueryAsync();
-
-                    if (rowsAffected == 0)
-                    {
-                        throw new Exception("Movie not found");
-                    }
-                }
-            }
-     }
-
      public async Task DeleteMovieAsync(Guid movieId)
      {
          using (var connection = new SqliteConnection(_connectionString))
@@ -152,24 +136,6 @@ namespace basic_fra_hw_02.Services
                     {
                         throw new Exception("Movie not found");
                     }
-                }
-            }
-     }
-
-     public async Task<bool> CheckIfMovieExistsAsync(Guid movieId)
-     {
-         using (var connection = new SqliteConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-
-                var query = "SELECT COUNT(1) FROM MOVIE WHERE movie_id = @MovieId";
-
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@MovieId", movieId);
-
-                    var result = (long)await command.ExecuteScalarAsync();
-                    return result > 0; // Returns true if the movie exists, false otherwise
                 }
             }
      }
