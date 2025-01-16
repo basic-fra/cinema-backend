@@ -1,60 +1,47 @@
-﻿using basic_fra_hw_02.Models;
+﻿using basic_fra_hw_02.Controllers.DTO;
+using basic_fra_hw_02.Filters;
+using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
 using basic_fra_hw_02.Services;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
+//[LogFilter]
 public class CinemaHallController : ControllerBase
 {
-    private readonly CinemaHallService _cinemaHallService;
-    private readonly CinemaService _cinemaService;
+    private readonly ICinemaHallLogic _cinemaHallLogic;
 
-    public CinemaHallController()
+    public CinemaHallController(ICinemaHallLogic cinemaHallLogic)
     {
-        string connectionString = "Data Source=CinemaDb.sqlite;";
-        _cinemaHallService = new CinemaHallService(connectionString);
-        _cinemaService = new CinemaService(connectionString);
+        _cinemaHallLogic = cinemaHallLogic;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCinemaHall([FromBody] CinemaHall cinemaHall)
+    public async Task<IActionResult> CreateCinemaHall([FromBody] NewHallDTO cinemaHall)
     {
-        if (cinemaHall.HallId == Guid.Empty)
-            cinemaHall.HallId = Guid.NewGuid();
-
-        var cinemaExists = await _cinemaService.CheckIfCinemaExistsAsync(cinemaHall.CinemaId);
-        if (!cinemaExists)
-            return BadRequest(new { Message = "Cinema not found" });
-
-        await _cinemaHallService.AddCinemaHallAsync(cinemaHall);
-        return CreatedAtAction(nameof(GetCinemaHallById), new { id = cinemaHall.HallId }, cinemaHall);
+        await _cinemaHallLogic.AddCinemaHallAsync(cinemaHall.ToModel());
+        return Ok("Cinema hall added successfully");
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllCinemaHalls()
+    public async Task<ActionResult<IEnumerable<HallDTO>>> GetAllCinemaHalls()
     {
-        var cinemaHalls = await _cinemaHallService.GetAllCinemaHallsAsync();
+        var cinemaHalls = (await _cinemaHallLogic.GetAllCinemaHallsAsync()).Select(x => HallDTO.FromModel(x)); 
         return Ok(cinemaHalls);
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetCinemaHallById(Guid id)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<HallDTO>> GetCinemaHallById(string id)
     {
-        var cinemaHall = await _cinemaHallService.GetCinemaHallByIdAsync(id);
-        if (cinemaHall == null)
-            return NotFound(new { Message = "CinemaHall not found" });
-
-        return Ok(cinemaHall);
+        var cinemaHall = await _cinemaHallLogic.GetCinemaHallByIdAsync(id);
+        return Ok(HallDTO.FromModel(cinemaHall));
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteCinemaHall(Guid id)
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteCinemaHall(string id)
     {
-        var cinemaHall = await _cinemaHallService.GetCinemaHallByIdAsync(id);
-        if (cinemaHall == null)
-            return NotFound(new { Message = "CinemaHall not found" });
-
-        await _cinemaHallService.DeleteCinemaHallAsync(id);
+        await _cinemaHallLogic.DeleteCinemaHallAsync(id);
         return Ok("CinemaHall deleted successfully");
     }
 }

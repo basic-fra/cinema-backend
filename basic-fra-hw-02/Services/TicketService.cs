@@ -1,25 +1,23 @@
-﻿using basic_fra_hw_02.Logics;
+﻿using basic_fra_hw_02.Configuration;
+using basic_fra_hw_02.Logics;
 using basic_fra_hw_02.Models;
+using basic_fra_hw_02.Services;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 
-public class TicketService
+public class TicketService : ITicketService
 {
     private readonly string _connectionString;
-    private readonly TicketLogic _ticketLogic;
 
-    public TicketService(string connectionString)
+    public TicketService(IOptions<DBConfiguration> configuration)
     {
-        _connectionString = connectionString;
-        _ticketLogic = new TicketLogic();
+        _connectionString = configuration.Value.ConnectionString;
     }
 
     public async Task AddTicketAsync(Ticket ticket)
     {
-        ticket.TicketId = Guid.NewGuid(); // Generate a unique TicketId
         using (var connection = new SqliteConnection(_connectionString))
         {
-            _ticketLogic.ValidateTicket(ticket);
-
             await connection.OpenAsync();
 
             // Step 1: Fetch hall_id and cinema_id based on movie_id
@@ -85,10 +83,10 @@ public class TicketService
                     {
                         tickets.Add(new Ticket
                         {
-                            TicketId = reader.GetGuid(0),
-                            PersonId = reader.GetGuid(1),
-                            MovieId = reader.GetGuid(2),
-                            HallId = reader.GetGuid(3),
+                            TicketId = reader.GetString(0),
+                            PersonId = reader.GetString(1),
+                            MovieId = reader.GetString(2),
+                            HallId = reader.GetString(3),
                             ShowTime = reader.GetDateTime(4),
                             SeatNumber = reader.GetString(5)
                         });
@@ -100,7 +98,7 @@ public class TicketService
         return tickets;
     }
 
-    public async Task<Ticket> GetTicketByIdAsync(Guid ticketId)
+    public async Task<Ticket?> GetTicketByIdAsync(string ticketId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -118,10 +116,10 @@ public class TicketService
                     {
                         return new Ticket
                         {
-                            TicketId = reader.GetGuid(0),
-                            PersonId = reader.GetGuid(1),
-                            MovieId = reader.GetGuid(2),
-                            HallId = reader.GetGuid(3),
+                            TicketId = reader.GetString(0),
+                            PersonId = reader.GetString(1),
+                            MovieId = reader.GetString(2),
+                            HallId = reader.GetString(3),
                             ShowTime = reader.GetDateTime(4),
                             SeatNumber = reader.GetString(5)
                         };
@@ -132,7 +130,7 @@ public class TicketService
         return null; // Return null if the ticket is not found
     }
 
-    public async Task DeleteTicketAsync(Guid ticketId)
+    public async Task DeleteTicketAsync(string ticketId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {

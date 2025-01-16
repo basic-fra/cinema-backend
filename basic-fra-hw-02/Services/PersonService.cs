@@ -1,26 +1,23 @@
-﻿using basic_fra_hw_02.Logics;
+﻿using basic_fra_hw_02.Configuration;
+using basic_fra_hw_02.Logics;
 using basic_fra_hw_02.Models;
+using basic_fra_hw_02.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
 
-public class PersonService
+public class PersonService : IPersonService
 {
     private readonly string _connectionString;
-    private readonly PersonLogic _personLogic;
 
-    public PersonService(string connectionString)
+    public PersonService(IOptions<DBConfiguration> configuration)
     {
-        _connectionString = connectionString;
-        _personLogic = new PersonLogic();   
+        _connectionString = configuration.Value.ConnectionString;
     }
 
     public async Task AddPersonAsync(Person person)
     {
-        _personLogic.ValidatePerson(person);
-
-        person.PersonId = Guid.NewGuid(); // Generate GUID here
-
         using (var connection = new SqliteConnection(_connectionString))
         {
             await connection.OpenAsync();
@@ -59,7 +56,7 @@ public class PersonService
                     {
                         persons.Add(new Person
                         {
-                            PersonId = reader.GetGuid(0),
+                            PersonId = reader.GetString(0),
                             Name = reader.GetString(1),
                             Password = reader.GetString(2),
                             Role = reader.GetString(3)
@@ -72,7 +69,7 @@ public class PersonService
         return persons;
     }
 
-    public async Task<Person> GetPersonByIdAsync(Guid personId)
+    public async Task<Person> GetPersonByIdAsync(string personId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -90,7 +87,7 @@ public class PersonService
                     {
                         return new Person
                         {
-                            PersonId = reader.GetGuid(0),
+                            PersonId = reader.GetString(0),
                             Name = reader.GetString(1),
                             Password = reader.GetString(2),
                             Role = reader.GetString(3)
@@ -102,7 +99,7 @@ public class PersonService
         return null; // Return null if person not found
     }
 
-    public async Task DeletePersonAsync(Guid personId)
+    public async Task DeletePersonAsync(string personId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {

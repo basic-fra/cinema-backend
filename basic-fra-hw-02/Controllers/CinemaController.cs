@@ -1,53 +1,48 @@
-﻿using basic_fra_hw_02.Models;
+﻿using basic_fra_hw_02.Controllers.DTO;
+using basic_fra_hw_02.Filters;
+using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
 using basic_fra_hw_02.Services;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
+//[LogFilter]
 public class CinemaController : ControllerBase
 {
-    private readonly CinemaService _cinemaService;
+    private readonly ICinemaLogic _cinemaLogic;
 
-    public CinemaController()
+    public CinemaController(ICinemaLogic cinemaLogic)
     {
-        string connectionString = "Data Source=CinemaDb.sqlite;";
-        //string connectionString = "Server=(localdb)\\MSSQLLocalDb;database=CinemaDb_nova;Trusted_Connection=True;";
-        _cinemaService = new CinemaService(connectionString);
+        _cinemaLogic = cinemaLogic;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateCinema([FromBody] Cinema cinema)
+    public async Task<IActionResult> CreateCinema([FromBody] NewCinemaDTO cinema)
     {
-        cinema.CinemaId = Guid.NewGuid();
-        await _cinemaService.AddCinemaAsync(cinema);
-        return CreatedAtAction(nameof(GetCinemaById), new { id = cinema.CinemaId }, cinema);
+        await _cinemaLogic.AddCinemaAsync(cinema.ToModel());
+        return Ok("Cinema added successfully!");
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllCinemas()
+    public async Task<ActionResult<IEnumerable<CinemaDTO>>> GetAllCinemas()
     {
-        var cinemas = await _cinemaService.GetAllCinemasAsync();
+        var cinemas = (await _cinemaLogic.GetAllCinemasAsync())
+            .Select(x => CinemaDTO.FromModel(x));
         return Ok(cinemas);
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetCinemaById(Guid id)
+    [HttpGet("{id}")]
+    public async Task<ActionResult<CinemaDTO>> GetCinemaById(string id)
     {
-        var cinema = await _cinemaService.GetCinemaByIdAsync(id);
-        if (cinema == null)
-            return NotFound(new { Message = "Cinema not found" });
-
-        return Ok(cinema);
+        var cinema = await _cinemaLogic.GetCinemaByIdAsync(id);
+        return Ok(CinemaDTO.FromModel(cinema));
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteCinema(Guid id)
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteCinema(string id)
     {
-        var cinema = await _cinemaService.GetCinemaByIdAsync(id);
-        if (cinema == null)
-            return NotFound(new { Message = "Cinema not found" });
-
-        await _cinemaService.DeleteCinemaAsync(id);
-        return Ok(new { Message = "Cinema deleted successfully" });
+        await _cinemaLogic.DeleteCinemaAsync(id);
+        return Ok("Cinema deleted successfully");
     }
 }

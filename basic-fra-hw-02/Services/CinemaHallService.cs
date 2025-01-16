@@ -5,31 +5,23 @@ using System.Threading.Tasks;
 using basic_fra_hw_02.Models;
 using System.Text.RegularExpressions;
 using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Services;
+using basic_fra_hw_02.Configuration;
+using Microsoft.Extensions.Options;
 
-public class CinemaHallService
+public class CinemaHallService : ICinemaHallService
 {
     private readonly string _connectionString;
-    private readonly CinemaHallLogic _cinemaHallLogic;
 
-    public CinemaHallService(string connectionString)
+    public CinemaHallService(IOptions<DBConfiguration> configuration)
     {
-        _connectionString = connectionString;
-        _cinemaHallLogic = new CinemaHallLogic();
+        _connectionString = configuration.Value.ConnectionString;
     }
+
 
     // Add CinemaHall
     public async Task AddCinemaHallAsync(CinemaHall cinemaHall)
     {
-        _cinemaHallLogic.ValidateHall(cinemaHall);
-
-        // Check if the CinemaId exists in the Cinema table
-        var cinemaExists = await CheckIfCinemaExistsAsync(cinemaHall.CinemaId);
-        if (!cinemaExists)
-        {
-            throw new Exception("Cinema does not exist");
-        }
-
-        // Proceed to add the CinemaHall
         using (var connection = new SqliteConnection(_connectionString))
         {
             await connection.OpenAsync();
@@ -69,8 +61,8 @@ public class CinemaHallService
                     {
                         cinemaHalls.Add(new CinemaHall
                         {
-                            HallId = reader.GetGuid(0),
-                            CinemaId = reader.GetGuid(1),
+                            HallId = reader.GetString(0),
+                            CinemaId = reader.GetString(1),
                             Name = reader.GetString(2),
                             Capacity = reader.GetInt32(3)
                         });
@@ -83,7 +75,7 @@ public class CinemaHallService
     }
 
     // Get CinemaHall by Id
-    public async Task<CinemaHall> GetCinemaHallByIdAsync(Guid hallId)
+    public async Task<CinemaHall?> GetCinemaHallByIdAsync(string hallId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -101,8 +93,8 @@ public class CinemaHallService
                     {
                         return new CinemaHall
                         {
-                            HallId = reader.GetGuid(0),
-                            CinemaId = reader.GetGuid(1),
+                            HallId = reader.GetString(0),
+                            CinemaId = reader.GetString(1),
                             Name = reader.GetString(2),
                             Capacity = reader.GetInt32(3)
                         };
@@ -115,7 +107,7 @@ public class CinemaHallService
     }
 
     // Delete CinemaHall
-    public async Task DeleteCinemaHallAsync(Guid hallId)
+    public async Task DeleteCinemaHallAsync(string hallId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -138,7 +130,7 @@ public class CinemaHallService
     }
 
     // Check if Cinema exists by CinemaId
-    private async Task<bool> CheckIfCinemaExistsAsync(Guid cinemaId)
+    public async Task<bool> CheckIfCinemaExistsAsync(string cinemaId)
     {
         using (var connection = new SqliteConnection(_connectionString))
         {
@@ -155,4 +147,5 @@ public class CinemaHallService
             }
         }
     }
+
 }

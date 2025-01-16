@@ -1,28 +1,24 @@
-﻿using basic_fra_hw_02.Logics;
+﻿using basic_fra_hw_02.Configuration;
+using basic_fra_hw_02.Logics;
 using basic_fra_hw_02.Models;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 
 namespace basic_fra_hw_02.Services
 {
-    public class CinemaService
+    public class CinemaService : ICinemaService
     {
         private readonly string _connectionString;
-        private readonly CinemaLogic _cinemaLogic;
-        public CinemaService(string connectionString)
+
+        public CinemaService(IOptions<DBConfiguration> configuration)
         {
-            _connectionString = connectionString;
-            _cinemaLogic = new CinemaLogic();
+            _connectionString = configuration.Value.ConnectionString;
         }
 
         // Add a new cinema
         public async Task AddCinemaAsync(Cinema cinema)
         {
-            // Delegate validation to CinemaLogic
-            _cinemaLogic.ValidateCinema(cinema);
-
-            cinema.CinemaId = Guid.NewGuid();
-
             using (var connection = new SqliteConnection(_connectionString))
             {
                 await connection.OpenAsync();
@@ -61,7 +57,7 @@ namespace basic_fra_hw_02.Services
                         {
                             cinemas.Add(new Cinema
                             {
-                                CinemaId = reader.GetGuid(0),
+                                CinemaId = reader.GetString(0),
                                 Name = reader.GetString(1),
                                 Location = reader.GetString(2)
                             });
@@ -74,7 +70,7 @@ namespace basic_fra_hw_02.Services
         }
 
         // Get cinema by ID
-        public async Task<Cinema?> GetCinemaByIdAsync(Guid cinemaId)
+        public async Task<Cinema?> GetCinemaByIdAsync(string cinemaId)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
@@ -84,7 +80,7 @@ namespace basic_fra_hw_02.Services
 
                 using (var command = new SqliteCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@CinemaId", cinemaId);// Convert Guid to string .ToString()
+                    command.Parameters.AddWithValue("@CinemaId", cinemaId);
 
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -92,8 +88,7 @@ namespace basic_fra_hw_02.Services
                         {
                             return new Cinema
                             {
-                                //CinemaId = Guid.Parse(reader.GetString(0)),  Parse string to Guid
-                                CinemaId = reader.GetGuid(0),
+                                CinemaId = reader.GetString(0),
                                 Name = reader.GetString(1),
                                 Location = reader.GetString(2)
                             };
@@ -105,7 +100,7 @@ namespace basic_fra_hw_02.Services
         }
 
         // Delete cinema by ID
-        public async Task DeleteCinemaAsync(Guid cinemaId)
+        public async Task DeleteCinemaAsync(string cinemaId)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
@@ -128,7 +123,7 @@ namespace basic_fra_hw_02.Services
         }
 
         // Check if cinema exists
-        public async Task<bool> CheckIfCinemaExistsAsync(Guid cinemaId)
+        public async Task<bool> CheckIfCinemaExistsAsync(string cinemaId)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {

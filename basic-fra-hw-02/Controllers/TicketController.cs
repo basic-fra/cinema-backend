@@ -1,47 +1,48 @@
-﻿using basic_fra_hw_02.Models;
+﻿using basic_fra_hw_02.Controllers.DTO;
+using basic_fra_hw_02.Filters;
+using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
+using basic_fra_hw_02.Services;
 using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
+//[LogFilter]
 public class TicketController : ControllerBase
 {
-    private readonly TicketService _ticketService;
+    private readonly ITicketLogic _ticketLogic;
 
-    public TicketController()
+    public TicketController(ITicketLogic ticketLogic)
     {
-        string connectionString = "Data Source=CinemaDb.sqlite;";
-        _ticketService = new TicketService(connectionString);
+        _ticketLogic = ticketLogic;
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateTicket([FromBody] Ticket ticket)
+    public async Task<ActionResult> CreateTicket([FromBody] NewTicketDTO ticket)
     {
-        ticket.TicketId = Guid.NewGuid();
-        await _ticketService.AddTicketAsync(ticket);
-        return CreatedAtAction(nameof(GetTicketById), new { id = ticket.TicketId }, ticket);
+        await _ticketLogic.AddTicketAsync(ticket.ToModel());
+        return Ok("The movie ticket has been purchased.");
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllTickets()
+    public async Task<ActionResult<IEnumerable<TicketDTO>>> GetAllTickets()
     {
-        var tickets = await _ticketService.GetAllTicketsAsync();
+        var tickets = (await _ticketLogic.GetAllTicketsAsync())
+            .Select(x => TicketDTO.FromModel(x)); ;
         return Ok(tickets);
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetTicketById(Guid id)
+    [HttpGet("{id}")]
+    public async Task<ActionResult> GetTicketById(string id)
     {
-        var ticket = await _ticketService.GetTicketByIdAsync(id);
-        if (ticket == null)
-            return NotFound(new { Message = "Ticket not found" });
-
-        return Ok(ticket);
+        var ticket = await _ticketLogic.GetTicketByIdAsync(id);
+        return Ok(TicketDTO.FromModel(ticket));
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteTicket(Guid id)
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteTicket(string id)
     {
-        await _ticketService.DeleteTicketAsync(id);
+        await _ticketLogic.DeleteTicketAsync(id);
         return Ok("Ticket deleted successfully!");
     }
 }

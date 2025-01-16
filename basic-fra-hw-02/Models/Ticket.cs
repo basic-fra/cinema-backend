@@ -5,16 +5,11 @@ namespace basic_fra_hw_02.Models
 {
     public class Ticket
     {
-        [JsonIgnore] // Hides this field from Swagger and JSON serialization
-        public Guid TicketId { get; set; }
-        public Guid PersonId { get; set; }
-        public Guid MovieId { get; set; }
-
-        [JsonIgnore]
-        public Guid HallId { get; set; }
-
-        [JsonIgnore]
-        public Guid CinemaId { get; set; }
+        public string TicketId { get; set; } = Guid.NewGuid().ToString();
+        public string PersonId { get; set; } = Guid.NewGuid().ToString();
+        public string MovieId { get; set; } = Guid.NewGuid().ToString();    
+        public string HallId { get; set; } = Guid.NewGuid().ToString();
+        public string CinemaId { get; set; } = Guid.NewGuid().ToString();
 
         [JsonConverter(typeof(DateTimeConverter))]
         public DateTime ShowTime { get; set; }
