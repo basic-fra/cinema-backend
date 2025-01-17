@@ -1,80 +1,48 @@
-﻿using basic_fra_hw_02.Models;
+﻿using basic_fra_hw_02.Controllers.DTO;
+using basic_fra_hw_02.Filters;
+using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
 using basic_fra_hw_02.Services;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Linq;
 
-namespace basic_fra_hw_02.Controllers
+[ApiController]
+[Route("api/[controller]")]
+//[LogFilter]
+public class CinemaController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class CinemaController : ControllerBase
+    private readonly ICinemaLogic _cinemaLogic;
+
+    public CinemaController(ICinemaLogic cinemaLogic)
     {
-        private readonly TicketService _ticketService;
+        _cinemaLogic = cinemaLogic;
+    }
 
-        // The DI container will inject TicketService into the controller
-        public CinemaController(TicketService ticketService)
-        {
-            _ticketService = ticketService;
-        }
+    [HttpPost]
+    public async Task<IActionResult> CreateCinema([FromBody] NewCinemaDTO cinema)
+    {
+        await _cinemaLogic.AddCinemaAsync(cinema.ToModel());
+        return Ok("Cinema added successfully!");
+    }
 
-        // Endpoint to create a new ticket
-        [HttpPost("ticket")]
-        public IActionResult CreateTicket([FromBody] MovieTicket ticket)
-        {
-            if (ticket == null || ticket.Recipients == null || !ticket.Recipients.Any())
-            {
-                return BadRequest("A movie ticket must have at least one recipient.");
-            }
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<CinemaDTO>>> GetAllCinemas()
+    {
+        var cinemas = (await _cinemaLogic.GetAllCinemasAsync())
+            .Select(x => CinemaDTO.FromModel(x));
+        return Ok(cinemas);
+    }
 
-            // Add the new ticket via TicketService
-            var createdTicket = _ticketService.AddTicket(ticket);
-            return CreatedAtAction(nameof(GetTicketById), new { id = createdTicket.Id }, createdTicket);
-        }
+    [HttpGet("{id}")]
+    public async Task<ActionResult<CinemaDTO>> GetCinemaById(string id)
+    {
+        var cinema = await _cinemaLogic.GetCinemaByIdAsync(id);
+        return Ok(CinemaDTO.FromModel(cinema));
+    }
 
-        // Endpoint to get all tickets
-        [HttpGet("tickets")]
-        public IActionResult GetTickets()
-        {
-            // Return all tickets from the service
-            return Ok(_ticketService.GetTickets());
-        }
-
-        // Endpoint to get a ticket by GUID
-        [HttpGet("ticket/{id}")]
-        public IActionResult GetTicketById(Guid id)
-        {
-            var ticket = _ticketService.GetTicketById(id);
-            if (ticket == null)
-                return NotFound();  // Return 404 if ticket is not found
-
-            return Ok(ticket);  // Return the ticket if found
-        }
-
-        // Endpoint to update a ticket by GUID
-        [HttpPut("ticket/{id}")]
-        public IActionResult UpdateTicket(Guid id, [FromBody] MovieTicket ticket)
-        {
-            if (ticket == null || ticket.Recipients == null || !ticket.Recipients.Any())
-            {
-                return BadRequest("A movie ticket must have at least one recipient.");
-            }
-
-            // Try to update the ticket via TicketService
-            if (!_ticketService.UpdateTicket(id, ticket))
-                return NotFound();  // Return 404 if ticket with given ID is not found
-
-            return NoContent();  // Return 204 No Content if updated successfully
-        }
-
-        // Endpoint to delete a ticket by GUID
-        [HttpDelete("ticket/{id}")]
-        public IActionResult DeleteTicket(Guid id)
-        {
-            if (!_ticketService.DeleteTicket(id))
-                return NotFound();  // Return 404 if ticket with given ID is not found
-
-            return NoContent();  // Return 204 No Content if deleted successfully
-        }
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteCinema(string id)
+    {
+        await _cinemaLogic.DeleteCinemaAsync(id);
+        return Ok("Cinema deleted successfully");
     }
 }

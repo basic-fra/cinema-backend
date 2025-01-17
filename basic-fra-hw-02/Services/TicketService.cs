@@ -1,58 +1,153 @@
-﻿using basic_fra_hw_02.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using basic_fra_hw_02.Configuration;
+using basic_fra_hw_02.Logics;
+using basic_fra_hw_02.Models;
+using basic_fra_hw_02.Services;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Options;
 
-namespace basic_fra_hw_02.Services
+public class TicketService : ITicketService
 {
-    public class TicketService
+    private readonly string _connectionString;
+
+    public TicketService(IOptions<DBConfiguration> configuration)
     {
-        private readonly List<MovieTicket> _tickets;
+        _connectionString = configuration.Value.ConnectionString;
+    }
 
-        // Constructor without any parameters
-        public TicketService()
+    public async Task AddTicketAsync(Ticket ticket)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
         {
-            _tickets = new List<MovieTicket>();
+            await connection.OpenAsync();
+
+            // Step 1: Fetch hall_id and cinema_id based on movie_id
+            var fetchQuery = @"
+            SELECT hall_id, cinema_id 
+            FROM MOVIE
+            WHERE movie_id = @MovieId";
+
+            string hallId, cinemaId;
+            using (var fetchCommand = new SqliteCommand(fetchQuery, connection))
+            {
+                fetchCommand.Parameters.AddWithValue("@MovieId", ticket.MovieId);
+
+                using (var reader = await fetchCommand.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        hallId = reader["hall_id"].ToString();
+                        cinemaId = reader["cinema_id"].ToString();
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Invalid movie_id. No movie found for the given movie_id.");
+                    }
+                }
+            }
+
+            // Step 2: Insert ticket with fetched hall_id and cinema_id
+            var insertQuery = @"
+            INSERT INTO TICKET (ticket_id, person_id, movie_id, hall_id, cinema_id, show_time, seat_number)
+            VALUES (@TicketId, @PersonId, @MovieId, @HallId, @CinemaId, @ShowTime, @SeatNumber)";
+
+            using (var insertCommand = new SqliteCommand(insertQuery, connection))
+            {
+                insertCommand.Parameters.AddWithValue("@TicketId", ticket.TicketId);
+                insertCommand.Parameters.AddWithValue("@PersonId", ticket.PersonId);
+                insertCommand.Parameters.AddWithValue("@MovieId", ticket.MovieId);
+                insertCommand.Parameters.AddWithValue("@HallId", hallId);
+                insertCommand.Parameters.AddWithValue("@CinemaId", cinemaId);
+                insertCommand.Parameters.AddWithValue("@ShowTime", ticket.ShowTime);
+                insertCommand.Parameters.AddWithValue("@SeatNumber", ticket.SeatNumber);
+
+                await insertCommand.ExecuteNonQueryAsync();
+            }
+        }
+    }
+
+    public async Task<List<Ticket>> GetAllTicketsAsync()
+    {
+        var tickets = new List<Ticket>();
+
+        using (var connection = new SqliteConnection(_connectionString))
+        {
+            await connection.OpenAsync();
+
+            var query = "SELECT ticket_id, person_id, movie_id, hall_id, show_time, seat_number FROM TICKET";
+
+            using (var command = new SqliteCommand(query, connection))
+            {
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        tickets.Add(new Ticket
+                        {
+                            TicketId = reader.GetString(0),
+                            PersonId = reader.GetString(1),
+                            MovieId = reader.GetString(2),
+                            HallId = reader.GetString(3),
+                            ShowTime = reader.GetDateTime(4),
+                            SeatNumber = reader.GetString(5)
+                        });
+                    }
+                }
+            }
         }
 
-        // Get all tickets
-        public IEnumerable<MovieTicket> GetTickets() => _tickets;
+        return tickets;
+    }
 
-        // Get ticket by ID
-        public MovieTicket GetTicketById(Guid id) => _tickets.FirstOrDefault(t => t.Id == id);
-
-        // Add a new ticket
-        public MovieTicket AddTicket(MovieTicket ticket)
+    public async Task<Ticket?> GetTicketByIdAsync(string ticketId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
         {
-            ticket.Id = Guid.NewGuid(); // Generate a new GUID for the ticket ID
-            _tickets.Add(ticket);
-            return ticket;
+            await connection.OpenAsync();
+
+            var query = "SELECT ticket_id, person_id, movie_id, hall_id, show_time, seat_number FROM TICKET WHERE ticket_id = @TicketId";
+
+            using (var command = new SqliteCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@TicketId", ticketId);
+
+                using (var reader = await command.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        return new Ticket
+                        {
+                            TicketId = reader.GetString(0),
+                            PersonId = reader.GetString(1),
+                            MovieId = reader.GetString(2),
+                            HallId = reader.GetString(3),
+                            ShowTime = reader.GetDateTime(4),
+                            SeatNumber = reader.GetString(5)
+                        };
+                    }
+                }
+            }
         }
+        return null; // Return null if the ticket is not found
+    }
 
-        // Update an existing ticket
-        public bool UpdateTicket(Guid id, MovieTicket updatedTicket)
+    public async Task DeleteTicketAsync(string ticketId)
+    {
+        using (var connection = new SqliteConnection(_connectionString))
         {
-            var existingTicket = GetTicketById(id);
-            if (existingTicket == null)
-                return false;
+            await connection.OpenAsync();
 
-            existingTicket.MovieName = updatedTicket.MovieName;
-            existingTicket.CinemaName = updatedTicket.CinemaName;
-            existingTicket.Time = updatedTicket.Time;
-            existingTicket.Recipients = updatedTicket.Recipients;
+            var query = "DELETE FROM TICKET WHERE ticket_id = @TicketId";
 
-            return true;
-        }
+            using (var command = new SqliteCommand(query, connection))
+            {
+                command.Parameters.AddWithValue("@TicketId", ticketId);
 
-        // Delete a ticket by ID
-        public bool DeleteTicket(Guid id)
-        {
-            var ticket = GetTicketById(id);
-            if (ticket == null)
-                return false;
-
-            _tickets.Remove(ticket);
-            return true;
+                var rowsAffected = await command.ExecuteNonQueryAsync();
+                if (rowsAffected == 0)
+                {
+                    throw new Exception("Ticket not found");
+                }
+            }
         }
     }
 }

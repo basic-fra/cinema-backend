@@ -1,9 +1,12 @@
-﻿namespace basic_fra_hw_02.Models
+﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+
+namespace basic_fra_hw_02.Models
 {
     public class Cinema
     {
-        public int Id { get; set; } // Unique identifier for a cinema
-        public string MovieName { get; set; } // Name of the movie
-        public string CinemaName { get; set; } // Name of the cinema
+        public string CinemaId { get; set; } = Guid.NewGuid().ToString();
+        public string? Name { get; set; }
+        public string? Location { get; set; }
     }
 }
